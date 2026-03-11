@@ -21,6 +21,9 @@ wheels/
 # Token storage
 token.json
 
+# Internal docs
+PRD.md
+
 # OS
 .DS_Store
 Thumbs.db
