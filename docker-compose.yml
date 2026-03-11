@@ -1,0 +1,19 @@
+services:
+  dida365-mcp:
+    build: .
+    ports:
+      - "${PORT:-8000}:8000"
+    environment:
+      - DIDA365_CLIENT_ID=${DIDA365_CLIENT_ID}
+      - DIDA365_CLIENT_SECRET=${DIDA365_CLIENT_SECRET}
+      - DIDA365_ACCESS_TOKEN=${DIDA365_ACCESS_TOKEN}
+      - DIDA365_REDIRECT_URI=${DIDA365_REDIRECT_URI:-http://localhost:8000/oauth/callback}
+      - TRANSPORT=http
+      - HOST=0.0.0.0
+      - PORT=8000
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import httpx; httpx.get('http://localhost:8000/mcp')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3

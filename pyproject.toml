@@ -1,0 +1,47 @@
+[project]
+name = "dida365-agent-mcp"
+version = "0.1.0"
+description = "MCP server for AI Agents to manage Dida365 (TickTick) tasks and projects"
+readme = "README.md"
+authors = [
+    { name = "linhai0872", email = "yuxii_2003@126.com" }
+]
+license = "MIT"
+requires-python = ">=3.12"
+dependencies = [
+    "fastmcp>=2.0",
+    "httpx>=0.27",
+    "pydantic>=2.0",
+    "pydantic-settings>=2.0",
+    "python-dotenv>=1.0",
+]
+
+[project.scripts]
+dida365-mcp = "dida365_agent_mcp.server:main"
+
+[build-system]
+requires = ["uv_build>=0.9.27,<0.10.0"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "pyright>=1.1.408",
+    "pytest>=8.0",
+    "pytest-asyncio>=0.24",
+    "respx>=0.22",
+    "ruff>=0.15.5",
+]
+
+[tool.pytest.ini_options]
+asyncio_mode = "strict"
+
+[tool.ruff]
+target-version = "py312"
+line-length = 99
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "W"]
+
+[tool.pyright]
+pythonVersion = "3.12"
+typeCheckingMode = "standard"
