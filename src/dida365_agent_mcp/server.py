@@ -88,6 +88,7 @@ def _build_data(**kwargs: Any) -> dict[str, Any]:
         "time_zone": "timeZone",
         "repeat_flag": "repeatFlag",
         "view_mode": "viewMode",
+        "sort_order": "sortOrder",
         "task_id": "id",
     }
     return {field_map.get(k, k): v for k, v in kwargs.items() if v is not None}
@@ -118,10 +119,20 @@ async def dida365_create_task(
     time_zone: str | None = None,
     reminders: list[str] | None = None,
     repeat_flag: str | None = None,
+    kind: str | None = None,
+    sort_order: int | None = None,
+    items: list[dict] | None = None,
 ) -> str:
     """Create a task. Requires title and project_id.
 
     Note: repeat_flag (RRULE) requires start_date to be set.
+
+    Args:
+        kind: TEXT (default), NOTE, or CHECKLIST. Set to CHECKLIST when passing items.
+        sort_order: Display order; lower values appear first.
+        items: Subtask list (for CHECKLIST kind). Each dict should contain at least
+            "title" (required). Optional keys (camelCase): "status" (0=normal, 1=done),
+            "sortOrder", "startDate", "isAllDay", "timeZone".
     """
     try:
         data = _build_data(
@@ -137,6 +148,9 @@ async def dida365_create_task(
             time_zone=time_zone,
             reminders=reminders,
             repeat_flag=repeat_flag,
+            kind=kind,
+            sort_order=sort_order,
+            items=items,
         )
         task = await _get_client().create_task(data)
         return _to_json(task)
@@ -167,8 +181,19 @@ async def dida365_update_task(
     time_zone: str | None = None,
     reminders: list[str] | None = None,
     repeat_flag: str | None = None,
+    kind: str | None = None,
+    sort_order: int | None = None,
+    items: list[dict] | None = None,
 ) -> str:
-    """Update a task. Only provided fields are changed; omitted fields remain unchanged."""
+    """Update a task. Only provided fields are changed; omitted fields remain unchanged.
+
+    Args:
+        kind: TEXT, NOTE, or CHECKLIST. Set to CHECKLIST when passing items.
+        sort_order: Display order; lower values appear first.
+        items: Subtask list (for CHECKLIST kind). Each dict should contain at least
+            "title" (required). Optional keys (camelCase): "status" (0=normal, 1=done),
+            "sortOrder", "startDate", "isAllDay", "timeZone".
+    """
     try:
         data = _build_data(
             task_id=task_id,
@@ -184,6 +209,9 @@ async def dida365_update_task(
             time_zone=time_zone,
             reminders=reminders,
             repeat_flag=repeat_flag,
+            kind=kind,
+            sort_order=sort_order,
+            items=items,
         )
         task = await _get_client().update_task(task_id, data)
         return _to_json(task)
@@ -398,10 +426,13 @@ async def dida365_create_project(
     color: str | None = None,
     view_mode: str | None = None,
     kind: str | None = None,
+    sort_order: int | None = None,
 ) -> str:
     """Create a project. view_mode: list|kanban|timeline. kind: TASK|NOTE."""
     try:
-        data = _build_data(name=name, color=color, view_mode=view_mode, kind=kind)
+        data = _build_data(
+            name=name, color=color, view_mode=view_mode, kind=kind, sort_order=sort_order,
+        )
         project = await _get_client().create_project(data)
         return _to_json(project)
     except Exception as e:
@@ -423,10 +454,13 @@ async def dida365_update_project(
     color: str | None = None,
     view_mode: str | None = None,
     kind: str | None = None,
+    sort_order: int | None = None,
 ) -> str:
     """Update a project. Only provided fields are changed."""
     try:
-        data = _build_data(name=name, color=color, view_mode=view_mode, kind=kind)
+        data = _build_data(
+            name=name, color=color, view_mode=view_mode, kind=kind, sort_order=sort_order,
+        )
         project = await _get_client().update_project(project_id, data)
         return _to_json(project)
     except Exception as e:

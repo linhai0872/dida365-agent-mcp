@@ -293,6 +293,55 @@ async def test_intl_list_projects(client_intl):
 
 @respx.mock
 @pytest.mark.asyncio
+async def test_create_task_with_items(client):
+    # Arrange
+    subtasks = [{"title": "Step 1", "status": 0, "sortOrder": 0}]
+    response_data = {**SAMPLE_TASK, "kind": "CHECKLIST", "items": subtasks}
+    route = respx.post(f"{BASE_URL_CHINA}/task").mock(
+        return_value=httpx.Response(200, json=response_data)
+    )
+
+    # Act
+    task = await client.create_task(
+        {"title": "Test Task", "projectId": "proj456", "kind": "CHECKLIST", "items": subtasks}
+    )
+
+    # Assert
+    assert task.kind == "CHECKLIST"
+    assert len(task.items) == 1
+    assert task.items[0].title == "Step 1"
+    sent_body = route.calls[0].request.content
+    import json
+
+    sent = json.loads(sent_body)
+    assert sent["kind"] == "CHECKLIST"
+    assert sent["items"] == subtasks
+
+
+@respx.mock
+@pytest.mark.asyncio
+async def test_create_task_with_sort_order(client):
+    # Arrange
+    response_data = {**SAMPLE_TASK, "sortOrder": 99}
+    route = respx.post(f"{BASE_URL_CHINA}/task").mock(
+        return_value=httpx.Response(200, json=response_data)
+    )
+
+    # Act
+    task = await client.create_task(
+        {"title": "Test Task", "projectId": "proj456", "sortOrder": 99}
+    )
+
+    # Assert
+    assert task.sortOrder == 99
+    import json
+
+    sent = json.loads(route.calls[0].request.content)
+    assert sent["sortOrder"] == 99
+
+
+@respx.mock
+@pytest.mark.asyncio
 async def test_intl_create_task(client_intl):
     # Arrange
     respx.post(f"{BASE_URL_INTL}/task").mock(return_value=httpx.Response(200, json=SAMPLE_TASK))
