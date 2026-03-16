@@ -113,6 +113,40 @@ class Dida365Client:
         resp = await self._request("POST", "/task/filter", json=body)
         return [Task.model_validate(t) for t in resp.json()]
 
+    async def get_task_by_id(self, task_id: str) -> Task:
+        resp = await self._request("POST", f"/task/{task_id}", json={})
+        return Task.model_validate(resp.json())
+
+    async def list_undone_tasks(
+        self,
+        start_date: str | None = None,
+        end_date: str | None = None,
+        project_ids: list[str] | None = None,
+    ) -> list[Task]:
+        body: dict[str, Any] = {}
+        if start_date:
+            body["startDate"] = start_date
+        if end_date:
+            body["endDate"] = end_date
+        if project_ids:
+            body["projectIds"] = project_ids
+        resp = await self._request("POST", "/task/undone", json=body)
+        return [Task.model_validate(t) for t in resp.json()]
+
+    async def batch_create_tasks(self, tasks: list[dict[str, Any]]) -> dict:
+        resp = await self._request("POST", "/task/batch", json={"add": tasks})
+        return resp.json()
+
+    async def batch_update_tasks(self, tasks: list[dict[str, Any]]) -> dict:
+        resp = await self._request("POST", "/task/batch", json={"update": tasks})
+        return resp.json()
+
+    async def batch_complete_tasks(self, project_id: str, task_ids: list[str]) -> None:
+        await self._request(
+            "POST", "/task/complete",
+            json={"projectId": project_id, "taskIds": task_ids},
+        )
+
     # ── Project endpoints ──
 
     async def list_projects(self) -> list[Project]:

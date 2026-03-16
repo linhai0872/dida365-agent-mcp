@@ -174,6 +174,112 @@ async def test_list_completed_tasks(client):
     assert tasks[0].status == 2
 
 
+@respx.mock
+@pytest.mark.asyncio
+async def test_get_task_by_id(client):
+    # Arrange
+    route = respx.post(f"{BASE_URL_CHINA}/task/task123").mock(
+        return_value=httpx.Response(200, json=SAMPLE_TASK)
+    )
+
+    # Act
+    task = await client.get_task_by_id("task123")
+
+    # Assert
+    assert isinstance(task, Task)
+    assert task.id == "task123"
+    import json
+
+    sent = json.loads(route.calls[0].request.content)
+    assert sent == {}
+
+
+@respx.mock
+@pytest.mark.asyncio
+async def test_list_undone_tasks(client):
+    # Arrange
+    route = respx.post(f"{BASE_URL_CHINA}/task/undone").mock(
+        return_value=httpx.Response(200, json=[SAMPLE_TASK])
+    )
+
+    # Act
+    tasks = await client.list_undone_tasks(
+        start_date="2025-03-01T00:00:00+0000",
+        end_date="2025-03-15T00:00:00+0000",
+    )
+
+    # Assert
+    assert len(tasks) == 1
+    assert isinstance(tasks[0], Task)
+    import json
+
+    sent = json.loads(route.calls[0].request.content)
+    assert "startDate" in sent
+    assert "endDate" in sent
+
+
+@respx.mock
+@pytest.mark.asyncio
+async def test_batch_create_tasks(client):
+    # Arrange
+    batch_resp = {"id2etag": {"t1": "e1"}, "id2error": {}}
+    route = respx.post(f"{BASE_URL_CHINA}/task/batch").mock(
+        return_value=httpx.Response(200, json=batch_resp)
+    )
+
+    # Act
+    result = await client.batch_create_tasks(
+        [{"title": "Task 1", "projectId": "proj456"}]
+    )
+
+    # Assert
+    assert result == batch_resp
+    import json
+
+    sent = json.loads(route.calls[0].request.content)
+    assert "add" in sent
+
+
+@respx.mock
+@pytest.mark.asyncio
+async def test_batch_update_tasks(client):
+    # Arrange
+    batch_resp = {"id2etag": {"t1": "e1"}, "id2error": {}}
+    route = respx.post(f"{BASE_URL_CHINA}/task/batch").mock(
+        return_value=httpx.Response(200, json=batch_resp)
+    )
+
+    # Act
+    result = await client.batch_update_tasks(
+        [{"id": "task123", "projectId": "proj456", "title": "Updated"}]
+    )
+
+    # Assert
+    assert result == batch_resp
+    import json
+
+    sent = json.loads(route.calls[0].request.content)
+    assert "update" in sent
+
+
+@respx.mock
+@pytest.mark.asyncio
+async def test_batch_complete_tasks(client):
+    # Arrange
+    route = respx.post(f"{BASE_URL_CHINA}/task/complete").mock(
+        return_value=httpx.Response(200)
+    )
+
+    # Act & Assert (no exception)
+    await client.batch_complete_tasks("proj456", ["task1", "task2"])
+
+    import json
+
+    sent = json.loads(route.calls[0].request.content)
+    assert sent["projectId"] == "proj456"
+    assert sent["taskIds"] == ["task1", "task2"]
+
+
 # ── Project tests ──
 
 

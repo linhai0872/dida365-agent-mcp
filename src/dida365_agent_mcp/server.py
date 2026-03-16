@@ -160,6 +160,50 @@ async def dida365_create_task(
 
 @mcp.tool(
     annotations={
+        "title": "Batch Create Tasks",
+        "readOnlyHint": False,
+        "destructiveHint": False,
+        "idempotentHint": False,
+        "openWorldHint": True,
+    }
+)
+async def dida365_batch_create_tasks(tasks: list[dict]) -> str:
+    """Batch create multiple tasks in one request.
+
+    Each dict requires "title" and "projectId". Optional fields same as create_task.
+    Returns {"id2etag": {...}, "id2error": {...}}.
+    """
+    try:
+        result = await _get_client().batch_create_tasks(tasks)
+        return _to_json(result)
+    except Exception as e:
+        return _handle_error(e, "batch_create_tasks")
+
+
+@mcp.tool(
+    annotations={
+        "title": "Batch Update Tasks",
+        "readOnlyHint": False,
+        "destructiveHint": False,
+        "idempotentHint": True,
+        "openWorldHint": True,
+    }
+)
+async def dida365_batch_update_tasks(tasks: list[dict]) -> str:
+    """Batch update multiple tasks in one request.
+
+    Each dict requires "id" and "projectId". Only provided fields are changed.
+    Returns {"id2etag": {...}, "id2error": {...}}.
+    """
+    try:
+        result = await _get_client().batch_update_tasks(tasks)
+        return _to_json(result)
+    except Exception as e:
+        return _handle_error(e, "batch_update_tasks")
+
+
+@mcp.tool(
+    annotations={
         "title": "Update Task",
         "readOnlyHint": False,
         "destructiveHint": False,
@@ -239,6 +283,26 @@ async def dida365_complete_task(task_id: str, project_id: str) -> str:
 
 @mcp.tool(
     annotations={
+        "title": "Batch Complete Tasks",
+        "readOnlyHint": False,
+        "destructiveHint": False,
+        "idempotentHint": True,
+        "openWorldHint": True,
+    }
+)
+async def dida365_batch_complete_tasks(
+    project_id: str, task_ids: list[str],
+) -> str:
+    """Mark multiple tasks in a project as completed."""
+    try:
+        await _get_client().batch_complete_tasks(project_id, task_ids)
+        return f"Completed {len(task_ids)} tasks in project {project_id}."
+    except Exception as e:
+        return _handle_error(e, "batch_complete_tasks")
+
+
+@mcp.tool(
+    annotations={
         "title": "Delete Task",
         "readOnlyHint": False,
         "destructiveHint": True,
@@ -271,6 +335,24 @@ async def dida365_get_task(task_id: str, project_id: str) -> str:
         return _to_json(task)
     except Exception as e:
         return _handle_error(e, "get_task")
+
+
+@mcp.tool(
+    annotations={
+        "title": "Get Task By ID",
+        "readOnlyHint": True,
+        "destructiveHint": False,
+        "idempotentHint": True,
+        "openWorldHint": True,
+    }
+)
+async def dida365_get_task_by_id(task_id: str) -> str:
+    """Get a task by ID without needing project_id."""
+    try:
+        task = await _get_client().get_task_by_id(task_id)
+        return _to_json(task)
+    except Exception as e:
+        return _handle_error(e, "get_task_by_id")
 
 
 @mcp.tool(
@@ -371,6 +453,32 @@ async def dida365_get_completed_tasks(
         return _to_json(tasks)
     except Exception as e:
         return _handle_error(e, "get_completed_tasks")
+
+
+@mcp.tool(
+    annotations={
+        "title": "List Undone Tasks",
+        "readOnlyHint": True,
+        "destructiveHint": False,
+        "idempotentHint": True,
+        "openWorldHint": True,
+    }
+)
+async def dida365_list_undone_tasks(
+    start_date: str | None = None,
+    end_date: str | None = None,
+    project_ids: list[str] | None = None,
+) -> str:
+    """List undone tasks within a date range, optionally filtered by projects."""
+    try:
+        tasks = await _get_client().list_undone_tasks(
+            start_date=start_date,
+            end_date=end_date,
+            project_ids=project_ids,
+        )
+        return _to_json(tasks)
+    except Exception as e:
+        return _handle_error(e, "list_undone_tasks")
 
 
 # ── Project Tools ──
