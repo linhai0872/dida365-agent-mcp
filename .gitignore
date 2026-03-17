@@ -27,3 +27,6 @@ PRD.md
 # OS
 .DS_Store
 Thumbs.db
+
+# MCP tool logs
+.playwright-mcp/

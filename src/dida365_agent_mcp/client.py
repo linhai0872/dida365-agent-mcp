@@ -118,8 +118,12 @@ class Dida365Client:
         return [Task.model_validate(t) for t in resp.json()]
 
     async def get_task_by_id(self, task_id: str) -> Task:
-        resp = await self._request("POST", f"/task/{task_id}", json={})
-        return Task.model_validate(resp.json())
+        # POST /task/{id} returns empty body; use filter endpoint instead
+        resp = await self._request("POST", "/task/filter", json={"ids": [task_id]})
+        tasks = resp.json()
+        if not tasks:
+            raise ValueError(f"Task {task_id} not found")
+        return Task.model_validate(tasks[0])
 
     async def list_undone_tasks(
         self,

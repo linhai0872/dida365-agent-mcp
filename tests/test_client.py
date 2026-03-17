@@ -178,8 +178,8 @@ async def test_list_completed_tasks(client):
 @pytest.mark.asyncio
 async def test_get_task_by_id(client):
     # Arrange
-    route = respx.post(f"{BASE_URL_CHINA}/task/task123").mock(
-        return_value=httpx.Response(200, json=SAMPLE_TASK)
+    route = respx.post(f"{BASE_URL_CHINA}/task/filter").mock(
+        return_value=httpx.Response(200, json=[SAMPLE_TASK])
     )
 
     # Act
@@ -191,7 +191,7 @@ async def test_get_task_by_id(client):
     import json
 
     sent = json.loads(route.calls[0].request.content)
-    assert sent == {}
+    assert sent == {"ids": ["task123"]}
 
 
 @respx.mock
