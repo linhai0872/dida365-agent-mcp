@@ -1,0 +1,12 @@
+.git
+.venv
+dist/
+build/
+__pycache__
+*.py[oc]
+*.egg-info
+tests/
+.env
+.claude/
+.playwright-mcp/
+scripts/smoke_test.py

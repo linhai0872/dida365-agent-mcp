@@ -4,11 +4,15 @@ services:
     ports:
       - "${PORT:-8000}:8000"
     environment:
+      - DIDA365_REGION=${DIDA365_REGION:-china}
       - DIDA365_CLIENT_ID=${DIDA365_CLIENT_ID}
       - DIDA365_CLIENT_SECRET=${DIDA365_CLIENT_SECRET}
       - DIDA365_ACCESS_TOKEN=${DIDA365_ACCESS_TOKEN}
       - DIDA365_REDIRECT_URI=${DIDA365_REDIRECT_URI:-http://localhost:8000/oauth/callback}
-      - TRANSPORT=http
+      - DIDA365_V2_SESSION_TOKEN=${DIDA365_V2_SESSION_TOKEN:-}
+      - DIDA365_USERNAME=${DIDA365_USERNAME:-}
+      - DIDA365_PASSWORD=${DIDA365_PASSWORD:-}
+      - TRANSPORT=streamable-http
       - HOST=0.0.0.0
       - PORT=8000
     restart: unless-stopped

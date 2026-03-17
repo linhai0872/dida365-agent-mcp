@@ -15,7 +15,7 @@ WORKDIR /app
 COPY --from=builder /app /app
 
 ENV PATH="/app/.venv/bin:$PATH"
-ENV TRANSPORT=http
+ENV TRANSPORT=streamable-http
 ENV HOST=0.0.0.0
 ENV PORT=8000
 
