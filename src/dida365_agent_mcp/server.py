@@ -8,11 +8,14 @@ from typing import Any
 from fastmcp import FastMCP
 
 from .client import Dida365Client
+from .client_v2 import Dida365V2Client
 from .config import settings
+from .server_v2 import init_v2_client, register_v2_tools
 
 logger = logging.getLogger(__name__)
 
 _client: Dida365Client | None = None
+_v2_client: Dida365V2Client | None = None
 
 
 def _get_client() -> Dida365Client:
@@ -23,25 +26,39 @@ def _get_client() -> Dida365Client:
 
 @asynccontextmanager
 async def lifespan(_app: Any):
-    global _client
+    global _client, _v2_client
     _client = Dida365Client()
+    if settings.dida365_v2_session_token:
+        _v2_client = Dida365V2Client(
+            session_token=settings.dida365_v2_session_token,
+            base_url=settings.v2_api_base_url,
+        )
+        init_v2_client(_v2_client)
+        logger.info("V2 client initialized — V2 tools registered")
     yield
     await _client.close()
+    if _v2_client:
+        await _v2_client.close()
 
 
 mcp = FastMCP(
     name="dida365-agent-mcp",
     instructions=(
         "Dida365/TickTick task management via Open API. "
-        "Workflow: call dida365_list_projects to get project IDs, "
+        "Read the dida365://projects resource first to get project IDs and names, "
         "then operate on tasks within those projects. "
         "All task mutations require both project_id and task_id. "
         "Priority values: 0=None, 1=Low, 3=Medium, 5=High. "
         "Status values: 0=Normal, 2=Completed. "
-        "Datetime format: yyyy-MM-dd'T'HH:mm:ssZ (e.g. 2025-03-15T09:00:00+0800)."
+        "Datetime format: yyyy-MM-dd'T'HH:mm:ssZ (e.g. 2025-03-15T09:00:00+0800). "
+        "V2 tools (tags, habits, folders, parent tasks) are available when "
+        "DIDA365_V2_SESSION_TOKEN is configured."
     ),
     lifespan=lifespan,
 )
+
+if settings.dida365_v2_session_token:
+    register_v2_tools(mcp)
 
 
 def _to_json(obj: Any) -> str:
@@ -51,6 +68,13 @@ def _to_json(obj: Any) -> str:
         items = [i.model_dump(exclude_none=True) if hasattr(i, "model_dump") else i for i in obj]
         return json.dumps(items, ensure_ascii=False, indent=2)
     return json.dumps(obj, ensure_ascii=False, indent=2)
+
+
+@mcp.resource("dida365://projects", mime_type="application/json")
+async def projects_resource() -> str:
+    """All projects. Auto-loaded as context so Agent knows available project IDs and names."""
+    projects = await _get_client().list_projects()
+    return _to_json(projects)
 
 
 def _handle_error(e: Exception, operation: str = "") -> str:

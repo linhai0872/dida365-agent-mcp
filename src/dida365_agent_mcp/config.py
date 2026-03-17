@@ -6,12 +6,14 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 _DOMAINS: dict[str, dict[str, str]] = {
     "china": {
         "api": "https://api.dida365.com/open/v1",
+        "v2_api": "https://api.dida365.com/api/v2",
         "auth": "https://dida365.com/oauth/authorize",
         "token": "https://dida365.com/oauth/token",
         "developer": "https://developer.dida365.com/manage",
     },
     "international": {
         "api": "https://api.ticktick.com/open/v1",
+        "v2_api": "https://api.ticktick.com/api/v2",
         "auth": "https://ticktick.com/oauth/authorize",
         "token": "https://ticktick.com/oauth/token",
         "developer": "https://developer.ticktick.com/manage",
@@ -31,6 +33,7 @@ class Settings(BaseSettings):
     dida365_access_token: str = ""
     dida365_redirect_uri: str = "http://localhost:8000/oauth/callback"
     dida365_region: Literal["china", "international"] = "china"
+    dida365_v2_session_token: str = ""
 
     transport: str = "stdio"
     host: str = "0.0.0.0"
@@ -55,6 +58,11 @@ class Settings(BaseSettings):
     @property
     def developer_url(self) -> str:
         return _DOMAINS[self.dida365_region]["developer"]
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def v2_api_base_url(self) -> str:
+        return _DOMAINS[self.dida365_region]["v2_api"]
 
 
 settings = Settings()
