@@ -1,6 +1,6 @@
 [project]
 name = "dida365-agent-mcp"
-version = "2.0.0"
+version = "2.0.1"
 description = "MCP server for AI Agents to manage Dida365 (TickTick) tasks and projects"
 readme = "README.md"
 authors = [
@@ -32,6 +32,7 @@ Repository = "https://github.com/linhai0872/dida365-agent-mcp"
 
 [project.scripts]
 dida365-mcp = "dida365_agent_mcp.server:main"
+dida365-oauth = "dida365_agent_mcp._oauth_flow:main"
 
 [build-system]
 requires = ["uv_build>=0.9.27,<0.10.0"]

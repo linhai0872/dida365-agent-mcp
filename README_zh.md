@@ -32,49 +32,37 @@
 
 ## 部署
 
-### 方案 A — 本地（stdio）
+四种方案，按复杂度从低到高排列。
 
-适用于 Claude Code、Cursor、Windsurf 等本地 MCP 客户端。
+---
 
-**1. 安装**
+### 方案 A — uvx（零安装，最简）
 
-```bash
-git clone https://github.com/linhai0872/dida365-agent-mcp.git
-cd dida365-agent-mcp
-uv sync
-```
+无需 git clone，无需虚拟环境，只需安装 [uv](https://docs.astral.sh/uv/getting-started/installation/)。
 
-> 需要 [uv](https://docs.astral.sh/uv/getting-started/installation/) 和 Python 3.12+。
+**1. 获取开发者凭据**
 
-**2. 获取开发者凭据**
-
-前往开发者中心，创建应用并复制凭据：
+前往开发者中心创建应用，复制 Client ID 和 Client Secret：
 - 滴答清单：https://developer.dida365.com/manage
 - TickTick：https://developer.ticktick.com/manage
 
 将 **Redirect URI** 设置为 `http://localhost:8000/oauth/callback`。
 
-**3. 配置**
+**2. 创建 `.env` 并授权**
 
 ```bash
-cp .env.example .env
-```
-
-```env
-DIDA365_REGION=china              # 国际版填 "international"
+# 创建配置文件
+cat > .env << 'EOF'
+DIDA365_REGION=china
 DIDA365_CLIENT_ID=your_client_id
 DIDA365_CLIENT_SECRET=your_client_secret
+EOF
+
+# 运行 OAuth — 自动打开浏览器，保存 Token（有效期约 180 天）
+uvx --from dida365-agent-mcp dida365-oauth
 ```
 
-**4. 授权**
-
-```bash
-uv run python scripts/oauth_flow.py
-```
-
-浏览器自动打开，登录后授权即可。Token 保存至 `~/.dida365-agent-mcp/token.json`，有效期约 180 天。
-
-**5. 连接 AI 客户端**
+**3. 连接 AI 客户端**
 
 <details>
 <summary>Claude Code</summary>
@@ -85,8 +73,8 @@ uv run python scripts/oauth_flow.py
 {
   "mcpServers": {
     "dida365": {
-      "command": "uv",
-      "args": ["--directory", "/path/to/dida365-agent-mcp", "run", "dida365-mcp"]
+      "command": "uvx",
+      "args": ["dida365-agent-mcp"]
     }
   }
 }
@@ -103,8 +91,8 @@ uv run python scripts/oauth_flow.py
 {
   "mcpServers": {
     "dida365": {
-      "command": "uv",
-      "args": ["--directory", "/path/to/dida365-agent-mcp", "run", "dida365-mcp"]
+      "command": "uvx",
+      "args": ["dida365-agent-mcp"]
     }
   }
 }
@@ -114,22 +102,54 @@ uv run python scripts/oauth_flow.py
 
 ---
 
-### 方案 B — 远程（Docker + HTTP）
+### 方案 B — pip install
+
+```bash
+pip install dida365-agent-mcp
+```
+
+后续步骤与方案 A 相同，将 `uvx --from dida365-agent-mcp dida365-oauth` 替换为 `dida365-oauth`，将 `uvx dida365-agent-mcp` 替换为 `dida365-mcp`。
+
+---
+
+### 方案 C — git clone（源码 / 开发）
+
+```bash
+git clone https://github.com/linhai0872/dida365-agent-mcp.git
+cd dida365-agent-mcp
+uv sync
+cp .env.example .env   # 填入 CLIENT_ID 和 CLIENT_SECRET
+uv run python scripts/oauth_flow.py
+```
+
+MCP 客户端配置：
+
+```json
+{
+  "mcpServers": {
+    "dida365": {
+      "command": "uv",
+      "args": ["--directory", "/path/to/dida365-agent-mcp", "run", "dida365-mcp"]
+    }
+  }
+}
+```
+
+---
+
+### 方案 D — 远程（Docker + HTTP）
 
 适用于需要持续运行或团队共享的场景。
 
-**1. 先在本地完成授权**（方案 A 第 1–4 步）
+**1. 先获取 Access Token**（通过方案 A、B 或 C 运行 OAuth）
 
-**2. 配置**
+**2. 部署**
 
 ```bash
+git clone https://github.com/linhai0872/dida365-agent-mcp.git
+cd dida365-agent-mcp
 cp .env.example .env
-# 填入 DIDA365_REGION 和 DIDA365_ACCESS_TOKEN（来自授权脚本输出）
-```
-
-**3. 启动**
-
-```bash
+# 在 .env 中填入 DIDA365_REGION 和 DIDA365_ACCESS_TOKEN
 docker compose up -d
 ```
 
@@ -139,9 +159,9 @@ docker compose up -d
 
 ---
 
-**6. （可选）启用 V2 工具** — 标签、搜索、习惯、文件夹、父子任务
+### （可选）启用 V2 工具 — 标签、搜索、习惯、文件夹、父子任务
 
-在 `.env` 中选择一种方式：
+在 `.env`（或 MCP 客户端的 `env` 配置块）中添加以下任一方式：
 
 ```env
 # 方式 1：Session Token（手动，最安全，30 天有效）
@@ -259,7 +279,7 @@ DIDA365_PASSWORD=your_password
 | 有效期 | 约 180 天 |
 | 自动刷新 | 不支持（API 限制） |
 | 过期检测 | 内置，到期前 24 小时预警 |
-| 续期方式 | 重新运行 `uv run python scripts/oauth_flow.py` |
+| 续期方式 | 重新运行 `dida365-oauth`（或 `uvx --from dida365-agent-mcp dida365-oauth`） |
 | 存储位置 | `~/.dida365-agent-mcp/token.json`（自动加载） |
 
 ## 开发

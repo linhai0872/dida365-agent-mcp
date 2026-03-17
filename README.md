@@ -32,49 +32,37 @@ Supports both **Dida365** (China) and **TickTick** (International) — switch wi
 
 ## Deployment
 
-### Option A — Local (stdio)
+Four options, ordered from simplest to most complex.
 
-For use with Claude Code, Cursor, Windsurf, and other local MCP clients.
+---
 
-**1. Install**
+### Option A — uvx (no install)
 
-```bash
-git clone https://github.com/linhai0872/dida365-agent-mcp.git
-cd dida365-agent-mcp
-uv sync
-```
+No git clone, no venv. Requires only [uv](https://docs.astral.sh/uv/getting-started/installation/).
 
-> Requires [uv](https://docs.astral.sh/uv/getting-started/installation/) and Python 3.12+.
+**1. Get API credentials**
 
-**2. Get API Credentials**
-
-Go to the developer portal, create an app, and copy the credentials:
+Create an app at the developer portal and copy the Client ID and Secret:
 - Dida365: https://developer.dida365.com/manage
 - TickTick: https://developer.ticktick.com/manage
 
 Set **Redirect URI** to `http://localhost:8000/oauth/callback`.
 
-**3. Configure**
+**2. Create `.env` and authorize**
 
 ```bash
-cp .env.example .env
-```
-
-```env
-DIDA365_REGION=china              # or "international" for TickTick
+# Create config file
+cat > .env << 'EOF'
+DIDA365_REGION=china
 DIDA365_CLIENT_ID=your_client_id
 DIDA365_CLIENT_SECRET=your_client_secret
+EOF
+
+# Run OAuth — opens browser, saves token (~180 days)
+uvx --from dida365-agent-mcp dida365-oauth
 ```
 
-**4. Authorize**
-
-```bash
-uv run python scripts/oauth_flow.py
-```
-
-Browser opens automatically. Token saved to `~/.dida365-agent-mcp/token.json` (~180 days).
-
-**5. Connect your AI client**
+**3. Connect your AI client**
 
 <details>
 <summary>Claude Code</summary>
@@ -85,8 +73,8 @@ Edit `~/.claude/mcp.json`:
 {
   "mcpServers": {
     "dida365": {
-      "command": "uv",
-      "args": ["--directory", "/path/to/dida365-agent-mcp", "run", "dida365-mcp"]
+      "command": "uvx",
+      "args": ["dida365-agent-mcp"]
     }
   }
 }
@@ -103,8 +91,8 @@ Go to **Settings > MCP > Add new global MCP server**:
 {
   "mcpServers": {
     "dida365": {
-      "command": "uv",
-      "args": ["--directory", "/path/to/dida365-agent-mcp", "run", "dida365-mcp"]
+      "command": "uvx",
+      "args": ["dida365-agent-mcp"]
     }
   }
 }
@@ -114,22 +102,54 @@ Go to **Settings > MCP > Add new global MCP server**:
 
 ---
 
-### Option B — Remote (Docker + HTTP)
-
-For always-on or team deployments accessible via HTTP.
-
-**1. Complete OAuth locally first** (Option A steps 1–4)
-
-**2. Configure**
+### Option B — pip install
 
 ```bash
-cp .env.example .env
-# Set DIDA365_REGION, DIDA365_ACCESS_TOKEN (from OAuth output)
+pip install dida365-agent-mcp
 ```
 
-**3. Deploy**
+Then follow the same steps as Option A, replacing `uvx --from dida365-agent-mcp dida365-oauth` with `dida365-oauth` and `uvx dida365-agent-mcp` with `dida365-mcp`.
+
+---
+
+### Option C — git clone (source / development)
 
 ```bash
+git clone https://github.com/linhai0872/dida365-agent-mcp.git
+cd dida365-agent-mcp
+uv sync
+cp .env.example .env   # fill in CLIENT_ID and CLIENT_SECRET
+uv run python scripts/oauth_flow.py
+```
+
+MCP client config:
+
+```json
+{
+  "mcpServers": {
+    "dida365": {
+      "command": "uv",
+      "args": ["--directory", "/path/to/dida365-agent-mcp", "run", "dida365-mcp"]
+    }
+  }
+}
+```
+
+---
+
+### Option D — Remote (Docker + HTTP)
+
+For always-on or team deployments.
+
+**1. Get the access token first** (run OAuth from Option A, B, or C)
+
+**2. Deploy**
+
+```bash
+git clone https://github.com/linhai0872/dida365-agent-mcp.git
+cd dida365-agent-mcp
+cp .env.example .env
+# Set DIDA365_REGION and DIDA365_ACCESS_TOKEN in .env
 docker compose up -d
 ```
 
@@ -139,9 +159,9 @@ Connect to `http://your-host:8000/mcp`.
 
 ---
 
-**6. (Optional) Enable V2 tools** — tags, search, habits, folders, parent tasks
+### (Optional) Enable V2 tools — tags, search, habits, folders, parent tasks
 
-Pick one method in `.env`:
+Add one of the following to your `.env` (or MCP client `env` block):
 
 ```env
 # Method 1: Session token (manual, most secure, 30-day expiry)
@@ -259,7 +279,7 @@ Talk to your AI agent naturally:
 | Validity | ~180 days |
 | Auto-refresh | Not supported (API limitation) |
 | Expiry detection | Built-in, warns 24h before expiry |
-| Renewal | Re-run `uv run python scripts/oauth_flow.py` |
+| Renewal | Re-run `dida365-oauth` (or `uvx --from dida365-agent-mcp dida365-oauth`) |
 | Storage | `~/.dida365-agent-mcp/token.json` (auto-loaded) |
 
 ## Development
