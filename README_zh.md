@@ -5,7 +5,7 @@
 </p>
 
 <p align="center">
-  <a href="README.md">English</a>
+  <a href="https://github.com/linhai0872/dida365-agent-mcp/blob/main/README.md">English</a>
 </p>
 
 <p align="center">
