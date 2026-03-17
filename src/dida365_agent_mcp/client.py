@@ -48,7 +48,11 @@ class Dida365Client:
 
     async def update_task(self, task_id: str, data: dict[str, Any]) -> Task:
         resp = await self._request("POST", f"/task/{task_id}", json=data)
-        return Task.model_validate(resp.json())
+        # API returns 200 with empty body; re-fetch to return the updated task
+        if resp.text:
+            return Task.model_validate(resp.json())
+        project_id = data.get("projectId", "")
+        return await self.get_task(project_id, task_id)
 
     async def complete_task(self, project_id: str, task_id: str) -> None:
         await self._request("POST", f"/project/{project_id}/task/{task_id}/complete")
