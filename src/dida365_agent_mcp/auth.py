@@ -97,7 +97,9 @@ def get_access_token() -> str:
     if token_data and token_data.get("access_token"):
         if _is_token_expired(token_data):
             raise RuntimeError(
-                "Access token has expired (~180 days). Re-run: uv run python scripts/oauth_flow.py"
+                "Access token has expired (~180 days). "
+                "Re-run: uv run python scripts/oauth_flow.py "
+                "(opens browser → authorize → new token auto-saved)"
             )
         return token_data["access_token"]
 

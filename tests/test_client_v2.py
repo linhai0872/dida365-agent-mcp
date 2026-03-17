@@ -2,7 +2,7 @@ import httpx
 import pytest
 import respx
 
-from dida365_agent_mcp.client_v2 import Dida365V2Client
+from dida365_agent_mcp.client_v2 import Dida365V2Client, signon
 from dida365_agent_mcp.models import (
     Habit,
     HabitCheckin,
@@ -126,6 +126,61 @@ async def test_delete_tag(client):
 
     # Act & Assert (no exception)
     await client.delete_tag("work")
+
+
+# ── Parent/Child tests ──
+
+
+# ── Search tests ──
+
+
+@respx.mock
+@pytest.mark.asyncio
+async def test_search_tasks_keywords_only(client):
+    # Arrange
+    search_resp = {"data": {"tasks": [{"id": "t1", "title": "Test"}], "comments": {}}}
+    route = respx.get(f"{BASE_URL_CHINA}/search/all").mock(
+        return_value=httpx.Response(200, json=search_resp)
+    )
+
+    # Act
+    result = await client.search_tasks("Test")
+
+    # Assert
+    assert result == search_resp
+    assert route.calls[0].request.url.params["keywords"] == "Test"
+
+
+@respx.mock
+@pytest.mark.asyncio
+async def test_search_tasks_all_filters(client):
+    # Arrange
+    search_resp = {"data": {"tasks": [], "comments": {}}}
+    route = respx.get(f"{BASE_URL_CHINA}/search/all").mock(
+        return_value=httpx.Response(200, json=search_resp)
+    )
+
+    # Act
+    result = await client.search_tasks(
+        "meeting",
+        project_ids=["p1", "p2"],
+        tags=["work"],
+        statuses=[0, 2],
+        due_from=1000000,
+        due_to=2000000,
+    )
+
+    # Assert
+    assert result == search_resp
+    params = str(route.calls[0].request.url)
+    assert "keywords=meeting" in params
+    assert "projectId=p1" in params
+    assert "projectId=p2" in params
+    assert "tags=work" in params
+    assert "status=0" in params
+    assert "status=2" in params
+    assert "dueFrom=1000000" in params
+    assert "dueTo=2000000" in params
 
 
 # ── Parent/Child tests ──
@@ -386,6 +441,50 @@ async def test_api_error_raises(client):
     # Act & Assert
     with pytest.raises(httpx.HTTPStatusError):
         await client.list_tags()
+
+
+# ── Signon tests ──
+
+
+@respx.mock
+@pytest.mark.asyncio
+async def test_signon_success():
+    # Arrange
+    respx.post(f"{BASE_URL_CHINA}/user/signon").mock(
+        return_value=httpx.Response(200, json={"token": "abc123", "userId": "u1"})
+    )
+
+    # Act
+    token = await signon(BASE_URL_CHINA, "user@test.com", "pass")
+
+    # Assert
+    assert token == "abc123"
+
+
+@respx.mock
+@pytest.mark.asyncio
+async def test_signon_2fa_raises():
+    # Arrange
+    respx.post(f"{BASE_URL_CHINA}/user/signon").mock(
+        return_value=httpx.Response(200, json={"authId": "2fa-id"})
+    )
+
+    # Act & Assert
+    with pytest.raises(RuntimeError, match="2FA"):
+        await signon(BASE_URL_CHINA, "user@test.com", "pass")
+
+
+@respx.mock
+@pytest.mark.asyncio
+async def test_signon_bad_credentials():
+    # Arrange
+    respx.post(f"{BASE_URL_CHINA}/user/signon").mock(
+        return_value=httpx.Response(401, json={"error": "unauthorized"})
+    )
+
+    # Act & Assert
+    with pytest.raises(httpx.HTTPStatusError):
+        await signon(BASE_URL_CHINA, "user@test.com", "wrong")
 
 
 # ── Cookie header test ──

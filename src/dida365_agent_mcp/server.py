@@ -8,7 +8,7 @@ from typing import Any
 from fastmcp import FastMCP
 
 from .client import Dida365Client
-from .client_v2 import Dida365V2Client
+from .client_v2 import Dida365V2Client, signon
 from .config import settings
 from .server_v2 import init_v2_client, register_v2_tools
 
@@ -20,7 +20,10 @@ _v2_client: Dida365V2Client | None = None
 
 def _get_client() -> Dida365Client:
     if _client is None:
-        raise RuntimeError("Server not initialized. Client is not available.")
+        raise RuntimeError(
+            "V1 client not initialized. Ensure DIDA365_ACCESS_TOKEN is set in .env, "
+            "or run OAuth flow: uv run python scripts/oauth_flow.py"
+        )
     return _client
 
 
@@ -28,13 +31,34 @@ def _get_client() -> Dida365Client:
 async def lifespan(_app: Any):
     global _client, _v2_client
     _client = Dida365Client()
-    if settings.dida365_v2_session_token:
+    v2_token = settings.dida365_v2_session_token
+    if not v2_token and settings.dida365_username and settings.dida365_password:
+        try:
+            v2_token = await signon(
+                settings.v2_api_base_url,
+                settings.dida365_username,
+                settings.dida365_password,
+            )
+            logger.info("V2 auto-login succeeded")
+        except Exception as e:
+            logger.warning(
+                "V2 auto-login failed: %s. "
+                "If 2FA is enabled, use DIDA365_V2_SESSION_TOKEN instead.",
+                e,
+            )
+    if v2_token:
         _v2_client = Dida365V2Client(
-            session_token=settings.dida365_v2_session_token,
+            session_token=v2_token,
             base_url=settings.v2_api_base_url,
         )
         init_v2_client(_v2_client)
-        logger.info("V2 client initialized — V2 tools registered")
+        logger.info("V2 client initialized — 21 V2 tools registered")
+    else:
+        logger.info(
+            "V2 not configured — tags/habits/folders/search tools disabled. "
+            "To enable: set DIDA365_V2_SESSION_TOKEN (browser cookie) "
+            "or DIDA365_USERNAME + DIDA365_PASSWORD in .env"
+        )
     yield
     await _client.close()
     if _v2_client:
@@ -51,13 +75,17 @@ mcp = FastMCP(
         "Priority values: 0=None, 1=Low, 3=Medium, 5=High. "
         "Status values: 0=Normal, 2=Completed. "
         "Datetime format: yyyy-MM-dd'T'HH:mm:ssZ (e.g. 2025-03-15T09:00:00+0800). "
-        "V2 tools (tags, habits, folders, parent tasks) are available when "
-        "DIDA365_V2_SESSION_TOKEN is configured."
+        "V2 tools (tags, habits, folders, parent tasks, search) are available when "
+        "DIDA365_V2_SESSION_TOKEN or DIDA365_USERNAME+DIDA365_PASSWORD is configured."
     ),
     lifespan=lifespan,
 )
 
-if settings.dida365_v2_session_token:
+_v2_configured = bool(
+    settings.dida365_v2_session_token
+    or (settings.dida365_username and settings.dida365_password)
+)
+if _v2_configured:
     register_v2_tools(mcp)
 
 
@@ -87,17 +115,25 @@ def _handle_error(e: Exception, operation: str = "") -> str:
         body = e.response.text
         messages = {
             401: (
-                "Unauthorized. Token may have expired (~180 days). "
-                "Re-run: uv run python scripts/oauth_flow.py"
+                "Unauthorized. V1 access token may have expired (~180 days). "
+                "Fix: run 'uv run python scripts/oauth_flow.py' to re-authorize "
+                "and get a new token (opens browser → authorize → auto-saved)."
             ),
-            403: "Forbidden. Insufficient permission for this resource.",
-            404: "Not found. Verify the project_id and task_id are valid.",
+            403: (
+                "Forbidden. The token lacks permission for this operation. "
+                "Ensure the OAuth scope includes 'tasks:read tasks:write'."
+            ),
+            404: (
+                "Not found. The project_id or task_id does not exist. "
+                "Use dida365_list_projects to get valid project IDs, "
+                "then dida365_get_project_tasks to get task IDs."
+            ),
             429: "Rate limited. Wait 30-60s before retrying.",
         }
         msg = messages.get(status, f"API error (HTTP {status})")
         return f"Error: {msg}\nDetails: {body}"
     if isinstance(e, httpx.TimeoutException):
-        return "Error: Request timed out. Try again."
+        return "Error: Request timed out. Check network connectivity and try again."
     if isinstance(e, RuntimeError):
         return f"Error: {e}"
     return f"Error: {type(e).__name__}: {e}"

@@ -15,7 +15,13 @@ _v2_client: Dida365V2Client | None = None
 
 def _get_v2_client() -> Dida365V2Client:
     if _v2_client is None:
-        raise RuntimeError("V2 client not initialized. Set DIDA365_V2_SESSION_TOKEN.")
+        raise RuntimeError(
+            "V2 client not initialized. To enable V2 tools, choose one method:\n"
+            "  Method 1: Set DIDA365_V2_SESSION_TOKEN "
+            "(browser DevTools → Application → Cookies → copy 't' value)\n"
+            "  Method 2: Set DIDA365_USERNAME + DIDA365_PASSWORD "
+            "(auto-login, not supported with 2FA)"
+        )
     return _v2_client
 
 
@@ -42,9 +48,16 @@ def _handle_error(e: Exception, operation: str = "") -> str:
         status = e.response.status_code
         body = e.response.text
         messages = {
-            401: "Unauthorized. V2 session token may have expired. Re-copy from browser DevTools.",
-            403: "Forbidden. Insufficient permission for this resource.",
-            404: "Not found. Verify the resource ID is valid.",
+            401: (
+                "Unauthorized. V2 session token expired (30-day validity). "
+                "To refresh: open dida365.com → F12 → Application → Cookies → "
+                "copy 't' value → update DIDA365_V2_SESSION_TOKEN in .env → restart server."
+            ),
+            403: "Forbidden. The session token lacks permission for this resource.",
+            404: (
+                "Not found. Verify the resource ID is valid. "
+                "Use the corresponding list tool to get valid IDs."
+            ),
             429: "Rate limited. Wait 30-60s before retrying.",
         }
         msg = messages.get(status, f"API error (HTTP {status})")
@@ -155,6 +168,48 @@ def register_v2_tools(mcp: FastMCP) -> None:
             return f"Tag '{name}' deleted successfully."
         except Exception as e:
             return _handle_error(e, "delete_tag")
+
+    # ── Search Tools ──
+
+    @mcp.tool(
+        annotations={
+            "title": "Search Tasks (V2)",
+            "readOnlyHint": True,
+            "destructiveHint": False,
+            "idempotentHint": True,
+            "openWorldHint": True,
+        }
+    )
+    async def dida365_search_tasks(
+        keywords: str,
+        project_ids: list[str] | None = None,
+        tags: list[str] | None = None,
+        statuses: list[int] | None = None,
+        due_from: int | None = None,
+        due_to: int | None = None,
+    ) -> str:
+        """Server-side full-text search for tasks.
+
+        Args:
+            keywords: Search query string.
+            project_ids: Filter by project IDs.
+            tags: Filter by tag names.
+            statuses: Filter by status (0=active, 2=completed).
+            due_from: Due date range start (ms timestamp).
+            due_to: Due date range end (ms timestamp).
+        """
+        try:
+            result = await _get_v2_client().search_tasks(
+                keywords,
+                project_ids=project_ids,
+                tags=tags,
+                statuses=statuses,
+                due_from=due_from,
+                due_to=due_to,
+            )
+            return _to_json(result)
+        except Exception as e:
+            return _handle_error(e, "search_tasks")
 
     # ── Parent/Child Task Tools ──
 

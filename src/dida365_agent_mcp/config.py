@@ -34,6 +34,8 @@ class Settings(BaseSettings):
     dida365_redirect_uri: str = "http://localhost:8000/oauth/callback"
     dida365_region: Literal["china", "international"] = "china"
     dida365_v2_session_token: str = ""
+    dida365_username: str = ""
+    dida365_password: str = ""
 
     transport: str = "stdio"
     host: str = "0.0.0.0"

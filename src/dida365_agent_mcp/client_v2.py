@@ -1,6 +1,9 @@
 from __future__ import annotations
 
+import json as _json
 import logging
+import os
+import time
 from typing import Any
 
 import httpx
@@ -14,6 +17,46 @@ from .models import (
 )
 
 logger = logging.getLogger(__name__)
+
+_DEFAULT_USER_AGENT = "Mozilla/5.0 (rv:145.0) Firefox/145.0"
+
+
+def _generate_device_id() -> str:
+    timestamp = int(time.time()).to_bytes(4, "big")
+    random_bytes = os.urandom(5)
+    counter = os.urandom(3)
+    return (timestamp + random_bytes + counter).hex()
+
+
+async def signon(
+    base_url: str,
+    username: str,
+    password: str,
+) -> str:
+    """Auto-login via username/password, returns session token.
+
+    Raises httpx.HTTPStatusError on auth failure (wrong credentials, 2FA required, etc).
+    """
+    device_header = _json.dumps(
+        {"platform": "web", "version": 6430, "id": _generate_device_id()}
+    )
+    async with httpx.AsyncClient(timeout=30.0) as client:
+        resp = await client.post(
+            f"{base_url}/user/signon",
+            params={"wc": "true", "remember": "true"},
+            json={"username": username, "password": password},
+            headers={
+                "User-Agent": _DEFAULT_USER_AGENT,
+                "X-Device": device_header,
+            },
+        )
+        resp.raise_for_status()
+        data = resp.json()
+    if "token" not in data:
+        raise RuntimeError(
+            "Login requires 2FA. Use DIDA365_V2_SESSION_TOKEN instead."
+        )
+    return data["token"]
 
 
 class Dida365V2Client:
@@ -116,6 +159,32 @@ class Dida365V2Client:
     async def list_habit_sections(self) -> list[HabitSection]:
         resp = await self._request("GET", "/habitSections")
         return [HabitSection.model_validate(s) for s in resp.json()]
+
+    # ── Search ──
+
+    async def search_tasks(
+        self,
+        keywords: str,
+        *,
+        project_ids: list[str] | None = None,
+        tags: list[str] | None = None,
+        statuses: list[int] | None = None,
+        due_from: int | None = None,
+        due_to: int | None = None,
+    ) -> dict:
+        params: list[tuple[str, str]] = [("keywords", keywords)]
+        if project_ids:
+            params.extend(("projectId", pid) for pid in project_ids)
+        if tags:
+            params.extend(("tags", t) for t in tags)
+        if statuses is not None:
+            params.extend(("status", str(s)) for s in statuses)
+        if due_from is not None:
+            params.append(("dueFrom", str(due_from)))
+        if due_to is not None:
+            params.append(("dueTo", str(due_to)))
+        resp = await self._request("GET", "/search/all", params=params)
+        return resp.json()
 
     # ── Folders (ProjectGroups) ──
 
