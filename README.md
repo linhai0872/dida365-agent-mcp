@@ -23,7 +23,7 @@ Supports both **Dida365** (China) and **TickTick** (International) — switch wi
 
 ## Features
 
-- **Full API coverage** — all 14 official Open API endpoints, including `move`, `filter`, and `completed` queries
+- **40 tools** — 19 V1 (official Open API) + 21 V2 (private API: tags, search, habits, folders, parent tasks)
 - **Dual transport** — `stdio` for local clients; `streamable-http` for remote agents
 - **Dual platform** — Dida365 and TickTick via `DIDA365_REGION` config
 - **One-click OAuth** — script auto-opens browser, receives callback, saves token
@@ -139,6 +139,24 @@ Connect to `http://your-host:8000/mcp`.
 
 ---
 
+**6. (Optional) Enable V2 tools** — tags, search, habits, folders, parent tasks
+
+Pick one method in `.env`:
+
+```env
+# Method 1: Session token (manual, most secure, 30-day expiry)
+# Browser DevTools → Application → Cookies → copy 't' value
+DIDA365_V2_SESSION_TOKEN=your_token
+
+# Method 2: Auto-login (convenient, does not support 2FA)
+DIDA365_USERNAME=your_email
+DIDA365_PASSWORD=your_password
+```
+
+Without V2 config, you still get 19 V1 tools. With V2, you get all 40.
+
+---
+
 ### Try It
 
 Talk to your AI agent naturally:
@@ -147,6 +165,9 @@ Talk to your AI agent naturally:
 - *"Create a high-priority task 'Review PR' in Work, due tomorrow"*
 - *"What tasks did I complete this week?"*
 - *"Move 'Design review' to the Archive project"*
+- *"Search tasks containing 'meeting'"* (V2)
+- *"List all my tags"* (V2)
+- *"Did I check in my reading habit today?"* (V2)
 
 ## Tools
 
@@ -179,6 +200,42 @@ Talk to your AI agent naturally:
 | `dida365_update_project` | Update project properties |
 | `dida365_delete_project` | Permanently delete a project and all its tasks |
 
+### Batch Operations
+
+| Tool | Description |
+|------|-------------|
+| `dida365_get_task_by_id` | Get a task by ID only (no project_id needed) |
+| `dida365_list_undone_tasks` | List undone tasks by date range or project |
+| `dida365_batch_create_tasks` | Batch create multiple tasks |
+| `dida365_batch_update_tasks` | Batch update multiple tasks |
+| `dida365_batch_complete_tasks` | Batch complete multiple tasks |
+
+### V2 Tools (optional — requires V2 auth)
+
+| Tool | Description |
+|------|-------------|
+| `dida365_search_tasks` | Server-side full-text search with keyword, project, tag, status, date filters |
+| `dida365_list_tags` | List all tags |
+| `dida365_create_tags` | Batch create tags |
+| `dida365_update_tags` | Batch update tags |
+| `dida365_delete_tags` | Batch delete tags |
+| `dida365_delete_tag` | Delete a single tag by name |
+| `dida365_set_task_parent` | Set parent-child task relationship |
+| `dida365_unset_task_parent` | Remove parent, make task top-level |
+| `dida365_pin_task` | Pin or unpin a task |
+| `dida365_list_habits` | List all habits |
+| `dida365_create_habit` | Batch create habits |
+| `dida365_update_habit` | Batch update habits |
+| `dida365_delete_habit` | Batch delete habits |
+| `dida365_checkin_habit` | Check in a habit for a date |
+| `dida365_undo_checkin` | Undo a habit checkin |
+| `dida365_list_habit_checkins` | List checkin records for a habit |
+| `dida365_list_habit_sections` | List habit sections/groups |
+| `dida365_list_folders` | List project folders |
+| `dida365_create_folder` | Create a project folder |
+| `dida365_update_folder` | Update a project folder |
+| `dida365_delete_folder` | Delete a project folder |
+
 ## Configuration
 
 | Variable | Description | Default |
@@ -188,6 +245,9 @@ Talk to your AI agent naturally:
 | `DIDA365_CLIENT_SECRET` | OAuth Client Secret | — |
 | `DIDA365_ACCESS_TOKEN` | Access token (set directly to skip OAuth) | — |
 | `DIDA365_REDIRECT_URI` | OAuth callback URL | `http://localhost:8000/oauth/callback` |
+| `DIDA365_V2_SESSION_TOKEN` | V2 session token (browser cookie `t`, 30-day expiry) | — |
+| `DIDA365_USERNAME` | V2 auto-login email/phone (alternative to session token) | — |
+| `DIDA365_PASSWORD` | V2 auto-login password (does not support 2FA) | — |
 | `TRANSPORT` | `stdio`, `streamable-http`, or `sse` (legacy) | `stdio` |
 | `HOST` | Bind address (http / sse only) | `0.0.0.0` |
 | `PORT` | Port (http / sse only) | `8000` |
@@ -219,14 +279,16 @@ TRANSPORT=streamable-http uv run dida365-mcp   # Run (Streamable HTTP)
 ```
 dida365-agent-mcp/
 ├── src/dida365_agent_mcp/
-│   ├── server.py        # FastMCP server + 14 tool definitions
-│   ├── client.py        # Async API client (httpx)
+│   ├── server.py        # FastMCP server + 19 V1 tool definitions + MCP resource
+│   ├── server_v2.py     # 21 V2 tool definitions (tags, search, habits, folders)
+│   ├── client.py        # V1 async API client (httpx + OAuth)
+│   ├── client_v2.py     # V2 async API client (httpx + session cookie)
 │   ├── auth.py          # OAuth2 flow + token management
-│   ├── models.py        # Pydantic data models
+│   ├── models.py        # Pydantic data models (V1 + V2)
 │   └── config.py        # Region-aware configuration
 ├── scripts/
 │   └── oauth_flow.py    # One-click OAuth script
-├── tests/               # Unit tests (respx)
+├── tests/               # 62 unit tests (respx)
 ├── Dockerfile           # Multi-stage build
 └── docker-compose.yml
 ```

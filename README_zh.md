@@ -23,7 +23,7 @@
 
 ## 特性
 
-- **完整 API 覆盖** — 全部 14 个官方 Open API 端点，包含 `move`（移动任务）、`filter`（条件筛选）、`completed`（已完成查询）
+- **40 个工具** — 19 个 V1（官方 Open API）+ 21 个 V2（私有 API：标签、搜索、习惯、文件夹、父子任务）
 - **双传输模式** — `stdio` 供本地客户端；`streamable-http` 供远程 Agent
 - **双平台支持** — 通过 `DIDA365_REGION` 配置切换滴答清单 / TickTick
 - **OAuth 一键授权** — 脚本自动打开浏览器、接收回调、保存 Token
@@ -139,6 +139,24 @@ docker compose up -d
 
 ---
 
+**6. （可选）启用 V2 工具** — 标签、搜索、习惯、文件夹、父子任务
+
+在 `.env` 中选择一种方式：
+
+```env
+# 方式 1：Session Token（手动，最安全，30 天有效）
+# 浏览器 DevTools → Application → Cookies → 复制 't' 的值
+DIDA365_V2_SESSION_TOKEN=your_token
+
+# 方式 2：自动登录（方便，不支持 2FA 账号）
+DIDA365_USERNAME=your_email
+DIDA365_PASSWORD=your_password
+```
+
+不配 V2 仍有 19 个 V1 工具可用，配置后可用全部 40 个。
+
+---
+
 ### 开始使用
 
 用自然语言和 AI 对话：
@@ -147,6 +165,9 @@ docker compose up -d
 - *「在工作项目里创建一个高优先级任务'评审 PR'，截止明天」*
 - *「这周我完成了哪些任务？」*
 - *「把'设计评审'移到归档项目」*
+- *「搜索包含'会议'的任务」*（V2）
+- *「列出我所有的标签」*（V2）
+- *「我今天的阅读习惯打卡了吗？」*（V2）
 
 ## 工具一览
 
@@ -179,6 +200,42 @@ docker compose up -d
 | `dida365_update_project` | 更新项目属性 |
 | `dida365_delete_project` | 永久删除项目及其所有任务 |
 
+### 批量操作
+
+| Tool | 说明 |
+|------|------|
+| `dida365_get_task_by_id` | 仅凭 task_id 获取任务（无需 project_id） |
+| `dida365_list_undone_tasks` | 按日期范围或项目查询未完成任务 |
+| `dida365_batch_create_tasks` | 批量创建任务 |
+| `dida365_batch_update_tasks` | 批量更新任务 |
+| `dida365_batch_complete_tasks` | 批量完成任务 |
+
+### V2 工具（可选 — 需要 V2 认证）
+
+| Tool | 说明 |
+|------|------|
+| `dida365_search_tasks` | 服务端全文搜索（关键词 + 项目/标签/状态/日期过滤） |
+| `dida365_list_tags` | 列出所有标签 |
+| `dida365_create_tags` | 批量创建标签 |
+| `dida365_update_tags` | 批量更新标签 |
+| `dida365_delete_tags` | 批量删除标签 |
+| `dida365_delete_tag` | 按名称删除单个标签 |
+| `dida365_set_task_parent` | 设置父子任务关系 |
+| `dida365_unset_task_parent` | 解除父子关系，变为顶层任务 |
+| `dida365_pin_task` | 置顶/取消置顶任务 |
+| `dida365_list_habits` | 列出所有习惯 |
+| `dida365_create_habit` | 批量创建习惯 |
+| `dida365_update_habit` | 批量更新习惯 |
+| `dida365_delete_habit` | 批量删除习惯 |
+| `dida365_checkin_habit` | 习惯打卡 |
+| `dida365_undo_checkin` | 撤销习惯打卡 |
+| `dida365_list_habit_checkins` | 查询习惯打卡记录 |
+| `dida365_list_habit_sections` | 列出习惯分组 |
+| `dida365_list_folders` | 列出项目文件夹 |
+| `dida365_create_folder` | 创建项目文件夹 |
+| `dida365_update_folder` | 更新项目文件夹 |
+| `dida365_delete_folder` | 删除项目文件夹 |
+
 ## 配置项
 
 | 变量 | 说明 | 默认值 |
@@ -188,6 +245,9 @@ docker compose up -d
 | `DIDA365_CLIENT_SECRET` | OAuth Client Secret | — |
 | `DIDA365_ACCESS_TOKEN` | Access Token（直接设置可跳过 OAuth） | — |
 | `DIDA365_REDIRECT_URI` | OAuth 回调地址 | `http://localhost:8000/oauth/callback` |
+| `DIDA365_V2_SESSION_TOKEN` | V2 Session Token（浏览器 cookie `t`，30 天有效） | — |
+| `DIDA365_USERNAME` | V2 自动登录邮箱/手机（与 session token 二选一） | — |
+| `DIDA365_PASSWORD` | V2 自动登录密码（不支持 2FA 账号） | — |
 | `TRANSPORT` | `stdio`、`streamable-http` 或 `sse`（旧版兼容） | `stdio` |
 | `HOST` | 绑定地址（http / sse 模式） | `0.0.0.0` |
 | `PORT` | 端口（http / sse 模式） | `8000` |
@@ -219,14 +279,16 @@ TRANSPORT=streamable-http uv run dida365-mcp   # 启动（Streamable HTTP）
 ```
 dida365-agent-mcp/
 ├── src/dida365_agent_mcp/
-│   ├── server.py        # FastMCP 服务 + 14 个 tool 定义
-│   ├── client.py        # 异步 API 客户端（httpx）
+│   ├── server.py        # FastMCP 服务 + 19 个 V1 tool 定义 + MCP Resource
+│   ├── server_v2.py     # 21 个 V2 tool 定义（标签、搜索、习惯、文件夹）
+│   ├── client.py        # V1 异步 API 客户端（httpx + OAuth）
+│   ├── client_v2.py     # V2 异步 API 客户端（httpx + session cookie）
 │   ├── auth.py          # OAuth2 授权 + Token 管理
-│   ├── models.py        # Pydantic 数据模型
+│   ├── models.py        # Pydantic 数据模型（V1 + V2）
 │   └── config.py        # 区域感知配置
 ├── scripts/
 │   └── oauth_flow.py    # 一键 OAuth 授权脚本
-├── tests/               # 单元测试（respx）
+├── tests/               # 62 个单元测试（respx）
 ├── Dockerfile           # 多阶段构建
 └── docker-compose.yml
 ```
