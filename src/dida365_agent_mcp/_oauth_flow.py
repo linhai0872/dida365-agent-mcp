@@ -60,9 +60,10 @@ class CallbackHandler(BaseHTTPRequestHandler):
         else:
             self.wfile.write(b"<h1>No code received. Please try again.</h1>")
 
-        threading.Thread(target=_server.shutdown, daemon=True).start()
+        if _server:
+            threading.Thread(target=_server.shutdown, daemon=True).start()
 
-    def log_message(self, *args):
+    def log_message(self, format: str, *args: object) -> None:  # noqa: A002
         pass
 
 

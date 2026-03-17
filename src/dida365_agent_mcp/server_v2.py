@@ -259,12 +259,8 @@ def register_v2_tools(mcp: FastMCP) -> None:
     async def dida365_pin_task(task_id: str, pinned: bool) -> str:
         """Pin or unpin a task."""
         try:
-            client = await _get_v2_client()._get_client()
-            resp = await client.request(
-                "POST", f"/task/{task_id}", json={"pinned": pinned}
-            )
-            resp.raise_for_status()
-            return _to_json(resp.json())
+            result = await _get_v2_client().pin_task(task_id, pinned)
+            return _to_json(result)
         except Exception as e:
             return _handle_error(e, "pin_task")
 

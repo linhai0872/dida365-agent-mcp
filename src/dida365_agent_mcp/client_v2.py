@@ -160,6 +160,14 @@ class Dida365V2Client:
         resp = await self._request("GET", "/habitSections")
         return [HabitSection.model_validate(s) for s in resp.json()]
 
+    # ── Pin ──
+
+    async def pin_task(self, task_id: str, pinned: bool) -> dict:
+        resp = await self._request("POST", f"/task/{task_id}", json={"pinned": pinned})
+        if resp.text:
+            return resp.json()
+        return {"pinned": pinned}
+
     # ── Search ──
 
     async def search_tasks(

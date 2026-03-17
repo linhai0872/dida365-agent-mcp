@@ -22,7 +22,7 @@ def _get_client() -> Dida365Client:
     if _client is None:
         raise RuntimeError(
             "V1 client not initialized. Ensure DIDA365_ACCESS_TOKEN is set in .env, "
-            "or run OAuth flow: uv run python scripts/oauth_flow.py"
+            "or run OAuth flow: dida365-oauth"
         )
     return _client
 
@@ -116,7 +116,7 @@ def _handle_error(e: Exception, operation: str = "") -> str:
         messages = {
             401: (
                 "Unauthorized. V1 access token may have expired (~180 days). "
-                "Fix: run 'uv run python scripts/oauth_flow.py' to re-authorize "
+                "Fix: run 'dida365-oauth' to re-authorize "
                 "and get a new token (opens browser → authorize → auto-saved)."
             ),
             403: (

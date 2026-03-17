@@ -98,7 +98,7 @@ def get_access_token() -> str:
         if _is_token_expired(token_data):
             raise RuntimeError(
                 "Access token has expired (~180 days). "
-                "Re-run: uv run python scripts/oauth_flow.py "
+                "Re-run: dida365-oauth "
                 "(opens browser → authorize → new token auto-saved)"
             )
         return token_data["access_token"]
@@ -106,7 +106,7 @@ def get_access_token() -> str:
     has_credentials = config.settings.dida365_client_id and config.settings.dida365_client_secret
     if has_credentials:
         raise RuntimeError(
-            "No access token found. Run the OAuth flow:\n  uv run python scripts/oauth_flow.py"
+            "No access token found. Run the OAuth flow:\n  dida365-oauth"
         )
 
     dev_url = config.settings.developer_url
@@ -115,5 +115,5 @@ def get_access_token() -> str:
         "Setup steps:\n"
         f"  1. Create an app at {dev_url}\n"
         "  2. Copy .env.example to .env and fill in credentials\n"
-        "  3. Run: uv run python scripts/oauth_flow.py"
+        "  3. Run: dida365-oauth"
     )
